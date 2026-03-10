@@ -37,91 +37,115 @@ Exception(s):
 Fork of https://github.com/1aN0rmus/TekDefense-Automater
     By ian.ahl@tekdefense.com
 """
+import logging
+import logging.config
 import sys
-from siteinfo import SiteFacade, Site
-from utilities import Parser, IPWrapper, VersionChecker
-from outputs import SiteDetailOutput
-from inputs import TargetFile
+import tempfile
+import os
 
+from argument_parser import Parser
+from utilities import ConfigError, LoggerWriter, Utils
+from tool import ToolFacade, Tool
+from reporting import ErrorReport
+from outputs import ReportingOutput
+from inputs import TargetList
+
+from tools.command import CmdTools
+from tools.website import WebTools
+
+__APPNAME__ = "MadDefense-Automater"
 __VERSION__ = "0.1.1"
-__GITLOCATION__ = "https://github.com/madrang/MadDefense-Automater"
-__GITFILEPREFIX__ = "https://raw.githubusercontent.com/madrang/MadDefense-Automater/master/"
+__GITLOCATION__ = "https://github.com/madrang/" + __APPNAME__
+__GITFILEPREFIX__ = f"https://raw.githubusercontent.com/madrang/{__APPNAME__}/master/"
+
+__SETTINGSXML__ = "settings.xml"
+__TOOLSXML__ = "tools.xml"
+__REMOTE_SITESXML_LOCATION__ = __GITFILEPREFIX__ + __TOOLSXML__
 
 class Automater():
-    def __init__(self, Proxy=None):
-        self.sourcelist = ["allsources"]
-        self.Proxy = Proxy
-        self.Verbose = False
-        self.VersionCheck = False
-        self.UserAgent = "CITDB/1.0"
-        self.hasBotOut = True
-        self.RefreshRemoteXML = False
-        self.Delay = 2                          # Delay used for accessing sites.
+    """
+    """
+    logger = logging.getLogger("Automater")
+        #TODO "hasBotOut": "BotOutputRequested"
 
-    def GetResults(self, targets):
-        targetlist = []
-        for tgt in targets:
-            tgt = tgt.replace("[.]", ".").replace("{.}", ".").replace("(.)", ".")
-            if IPWrapper.isIPorIPList(tgt):
-                for targ in IPWrapper.getTarget(tgt):
-                    targetlist.append(targ)
+    def __init__(self, **kwargs):
+        self.Proxy = None
+        Utils.copyattr(self, "Proxy", kwargs, "proxy")
+        Utils.copyattr(self, "Delay", kwargs, "delay", 2)
+        Utils.copyattr(self, "UserAgent", kwargs, "useragent", "CITDB/1.0")
+
+    def getResults(self, toolsfac, targets, **kwargs):
+        Utils.applydefault(kwargs
+            , proxy = self.Proxy
+            , delay = self.Delay
+            , useragent = "CITDB/1.0"
+        )
+        targetList = TargetList.normalize(targets)
+        return toolsfac.runAll(targetList, **kwargs)
+
+    def refreshRemoteXML(self, checkOnly = False):
+        """
+            refreshremotexml -- true or false representing if Automater will refresh the tekdefense.xml file on each run.
+        """
+        localmd5 = None
+        try:
+            localmd5 = Utils.getHashOfLocalFile(__TOOLSXML__)
+        except IOError:
+            self.logger.error(f"Local file {__TOOLSXML__} not located."\
+                              " Attempting download.")
+
+        remotemd5 = None
+        try:
+            if checkOnly:
+                remotemd5 = Utils.getHashOfRemoteFile(__REMOTE_SITESXML_LOCATION__, proxy = self.Proxy)
             else:
-                targetlist.append(tgt)
+                remotemd5 = Utils.getRemoteFile(__REMOTE_SITESXML_LOCATION__, __TOOLSXML__, proxy = self.Proxy)
+        except ConnectionError as ce:
+            try:
+                self.logger.error(f"Cannot connect to {__REMOTE_SITESXML_LOCATION__}."\
+                                 f" Server response is {ce.message[0]} Server error"\
+                                 f" code is {ce.message[1][0]}")
+            except:
+                self.logger.exception(f"Cannot connect to {__REMOTE_SITESXML_LOCATION__} to retreive the {__TOOLSXML__} for use.")
+        except HTTPError as he:
+            try:
+                self.logger.error(f"Cannot connect to {__REMOTE_SITESXML_LOCATION__}."\
+                                  f" Server response is {he.message}.")
+            except:
+                self.logger.exception(f"Cannot connect to {__REMOTE_SITESXML_LOCATION__} to retreive the {__TOOLSXML__} for use.")
+        except:
+            self.logger.exception(f"Cannot connect to {__REMOTE_SITESXML_LOCATION__} to retreive the {__TOOLSXML__} for use.")
 
-        sitefac = SiteFacade(self.Verbose)
-        sitefac.runSiteAutomation(self.Delay, self.Proxy, targetlist, self.sourcelist, self.UserAgent, self.hasBotOut
-                                , self.RefreshRemoteXML, __GITLOCATION__)
+        if not localmd5 or not remotemd5:
+            return
+        if remotemd5 != localmd5:
+            self.logger.error(f"There is an updated remote {__TOOLSXML__} file at {__REMOTE_SITESXML_LOCATION__}."\
+                              " Attempting download.")
+        else:
+            self.logger.error(f"Downloaded remote {__TOOLSXML__} file from {__REMOTE_SITESXML_LOCATION__}.")
 
-        sites = sorted(sitefac.Sites, key=attrgetter("Target"))
-        if sites is None:
-            return []
+    def checkModulesVersion(self):
+        """
+            Uses MD5 to indicate if any files needs to be updated.
+        """
+        execpath = os.path.dirname(os.path.realpath(__file__))
+        pythonfiles = [f for f in os.listdir(execpath) if os.path.isfile(os.path.join(execpath, f)) and f[-3:] == ".py"]
+        try:
+            modifiedfiles = Utils.getModifiedFiles(
+                        __GITFILEPREFIX__
+                        , pythonfiles
+                        , proxy = self.Proxy)
+            if modifiedfiles is None or len(modifiedfiles) == 0:
+                self.logger.debug("All Automater files are up to date")
+            else:
+                self.logger.warning(f"The following files require update: {", ".join(modifiedfiles)}."\
+                                  f"\nSee {__GITLOCATION__} to update these files")
+        except:
+            self.logger.exception(f"There was an error while checking the version of the Automater files."\
+                                 f" Please see {__GITLOCATION__} to check if the files are still online.")
+            raise
 
-        resultList = []
-        for site in sites:
-            if not isinstance(site._regex, str): # this is a multisite:
-                for index in range(len(site.RegEx)): # the regexs will ensure we have the exact number of lookups
-                    site_importantProperty = site.getImportantProperty(index)
-                    if site_importantProperty is None or len(site_importantProperty) == 0:
-                        continue
-                    if site_importantProperty[index] is None or len(site_importantProperty[index]) == 0:
-                        continue
-                    # if it's just a string we don't want it to output like a list
-                    if isinstance(site_importantProperty, str):
-                        typ = site.TargetType
-                        source = site.FriendlyName
-                        res = site_importantProperty
-                        resultList.append([ site.Target, typ, site.FriendlyName, res ])
-                    else: # must be a list since it failed the isinstance check on string
-                        laststring = ""
-                        for siteresult in site_importantProperty[index]:
-                            typ = site.TargetType
-                            source = site.FriendlyName[index]
-                            res = siteresult
-                            if "" + site.Target + typ + source + str(res) != laststring:
-                                resultList.append([ site.Target, typ, source, res ])
-                                laststring = "" + site.Target + typ + source + str(res)
-            else: # this is a singlesite
-                site_importantProperty = site.getImportantProperty()
-                if site_importantProperty is None or len(site_importantProperty) == 0:
-                    continue
-                # if it's just a string we don't want it output like a list
-                if isinstance(site_importantProperty, str):
-                    typ = site.TargetType
-                    source = site.FriendlyName
-                    res = site_importantProperty
-                    resultList.append([ site.Target, typ, source, res ])
-                else:
-                    laststring = ""
-                    for siteresult in site_importantProperty:
-                        typ = site.TargetType
-                        source = site.FriendlyName
-                        res = siteresult
-                        if "" + site.Target + typ + source + str(res) != laststring:
-                            resultList.append([ site.Target, typ, source, res ])
-                            laststring = "" + site.Target + typ + source + str(res)
-        return resultList
-
-def main():
+if __name__ == "__main__":
     """ Serves as the instantiation point to start Automater.
 
     Argument(s):
@@ -130,51 +154,155 @@ def main():
     Return value(s):
         Nothing is returned from this Method.
     """
-
-    sites = []
     parser = Parser("IP, URL, and Hash Passive Analysis tool", __VERSION__)
+
+    def filter_maker(level):
+        level = getattr(logging, level)
+
+        def filter(record):
+            return record.levelno <= level
+
+        return filter
+
+    parser.LogFilename
+    logConfig = Utils.getJSONDict(parser.LogFilename) if parser.LogFilename else None
+    if not logConfig:
+        logConfig = {
+            "version": 1
+          , "disable_existing_loggers": False
+          , "formatters": {
+                "simple": {
+                    "class": "logging.Formatter"
+                  , "format": "{name:^24.24}\u2503 {message}" if parser.Verbose else "{message}"
+                  , "style": "{"
+                }
+              , "detailed": {
+                    "class": "logging.Formatter"
+                  , "datefmt": "%Y-%m-%d %H:%M:%S"
+                  , "format": "{asctime:s}:{msecs:03.0f}‖{levelname:^5.8s}=>{name:^24s}-> {message:s}"
+                  , "style": "{"
+                }
+            }
+          , "filters": {
+                "warnings_and_below": {
+                    "()" : f"{__name__}.filter_maker"
+                  , "level": "WARNING"
+                }
+            }
+          , "handlers": {
+                "stdout": {
+                    "class": "logging.StreamHandler"
+                  , "level": "DEBUG" if parser.Verbose else "INFO"
+                  , "formatter": "simple"
+                  , "stream": "ext://sys.stdout"
+                  , "filters": [ "warnings_and_below" ]
+                }
+              , "stderr": {
+                    "class": "logging.StreamHandler"
+                  , "level": "ERROR"
+                  , "formatter": "simple"
+                  , "stream": "ext://sys.stderr"
+                }
+              , "file": {
+                    "class": "logging.FileHandler"
+                  , "formatter": "detailed"
+                  , "filename": os.path.join(tempfile.gettempdir(), __APPNAME__ + ".log")
+                  , "mode": "a"
+                }
+            }
+          , "root": {
+                "level": "DEBUG"
+              , "handlers": [
+                    "stderr"
+                  , "stdout"
+                  , "file"
+                ]
+            }
+        }
+    logging.config.dictConfig(logConfig)
+
+    # Logs prints statements by intercepting stdout & stderr.
+    sys.stdout = LoggerWriter(logging.getLogger("sys.stdout"), logging.INFO)
+    sys.stderr = LoggerWriter(logging.getLogger("sys.stderr"), logging.ERROR)
+
+    automaterObj = Automater(
+                    proxy = parser.Proxy
+                )
+
+    logger = logging.getLogger(__APPNAME__)
+    logger.debug(f"[+] V{__VERSION__} -- Sources: {Utils.getHashOfLocalFile(__TOOLSXML__, hashname = "sha256")}")
+    logger.debug(f"[+] Tools: {", ".join([t.__name__ for t in Tool.getList()])}")
 
     # if no target run and print help
     if not parser.Target:
-        print("[!] No argument given.")
-        parser.print_help()  # need to fix this. Will later
-        sys.exit()
+        logger.fatal("[!] No argument given.")
+        parser.print_help()
+        sys.exit(1)
 
     if parser.VersionCheck:
-        VersionChecker.checkModules(__GITFILEPREFIX__, __GITLOCATION__, parser.Proxy, parser.Verbose)
+        VersionChecker.checkModules()
+    if parser.RefreshRemoteXML:
+        automaterObj.refreshRemoteXML()
 
-    # user may only want to run against one source - allsources
+    # user may only want to run against one source - Use "*" for all sources.
     # is the seed used to check if the user did not enter an s tag
-    sourcelist = ["allsources"]
-    if parser.Source:
-        sourcelist = parser.Source.split(";")
+    sourcelist = parser.Source.split(";") if parser.Source else ["*"]
 
-    # a file input capability provides a possibility of
-    # multiple lines of targets
+    # a file input capability provides a possibility of multiple lines of targets
     targetlist = []
     if parser.hasInputFile:
-        for tgtstr in TargetFile.TargetList(parser.InputFile, parser.Verbose):
-            tgtstrstripped = tgtstr.replace("[.]", ".").replace("{.}", ".").replace("(.)", ".")
-            if IPWrapper.isIPorIPList(tgtstrstripped):
-                for targ in IPWrapper.getTarget(tgtstrstripped):
-                    targetlist.append(targ)
-            else:
-                targetlist.append(tgtstrstripped)
+        try:
+            targetlist.extend(TargetList.fromFile(parser.InputFile))
+        except:
+            logger.exception("There was an error reading from the target input file.")
+            sys.exit(1)
     else:  # one target or list of range of targets added on console
-        target = parser.Target
-        tgtstrstripped = target.replace("[.]", ".").replace("{.}", ".").replace("(.)", ".")
-        if IPWrapper.isIPorIPList(tgtstrstripped):
-            for targ in IPWrapper.getTarget(tgtstrstripped):
-                targetlist.append(targ)
-        else:
-            targetlist.append(tgtstrstripped)
+        targetlist.extend(TargetList.normalize([ parser.Target ]))
 
-    sitefac = SiteFacade(parser.Verbose)
-    sitefac.runSiteAutomation(parser.Delay, parser.Proxy, targetlist, sourcelist, parser.UserAgent, parser.hasBotOut,
-                              parser.RefreshRemoteXML, __GITLOCATION__)
-    sites = sitefac.Sites
-    if sites:
-        SiteDetailOutput(sites).createOutputInfo(parser)
+    toolsfac = ToolFacade()
+    try:
+        toolsfac.loadXML(__TOOLSXML__, sourcelist)
+    except Exception as error:
+        raise ConfigError(f"A problem was found in the {__TOOLSXML__} file.\n"\
+                        "There appears to be an invalid site entry in the Sites config."
+                            , __TOOLSXML__) from error
+    try:
+        toolsfac.loadXML(__SETTINGSXML__, sourcelist)
+    except Exception as error:
+        raise ConfigError(f"A problem was found in the {__SETTINGSXML__} file.\n"\
+                        "There appears to be an invalid site entry in the Sites config."
+                            , __SETTINGSXML__) from error
+    tools = toolsfac.Tools
+    if not tools or len(tools) <= 0:
+        raise ConfigError(f"Unfortunately there is neither a {__TOOLSXML__} file nor a {__SETTINGSXML__} file that can be utilized for proper parsing.\n"\
+                "At least one configuration XML file must be available for Automater to work properly.", __TOOLSXML__)
 
-if __name__ == "__main__":
-    main()
+    reportFormatter = ReportingOutput(tools, parser)
+    tools_config = {
+        "*": {
+           "delay": parser.Delay
+        }
+        , "": {
+           "proxy": parser.Proxy
+           , "useragent": parser.UserAgent
+        }
+        #TODO parser.hasBotOut
+    }
+    try:
+        resultsFound = False
+        hasErrors = False
+        with reportFormatter.beingReport():
+            for reportItem in automaterObj.getResults(toolsfac, targetlist, **tools_config):
+                if isinstance(reportItem, ErrorReport):
+                    hasErrors = True
+                reportFormatter.printResult(reportItem)
+                resultsFound = True
+        if hasErrors:
+            logger.fatal("Failed to complete all tests!")
+            sys.exit(3)
+        if not resultsFound:
+            logger.warning("No results!")
+            sys.exit(2)
+    except ConfigError as error:
+        error.add_note(f"Please see {__GITLOCATION__} for further instructions.")
+        raise error

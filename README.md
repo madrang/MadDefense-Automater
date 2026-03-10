@@ -1,4 +1,4 @@
-TekDefense-Automater
+MadDefense-Automater
 ====================
 Fork of https://github.com/1aN0rmus/TekDefense-Automater
 By ian.ahl@tekdefense.com
