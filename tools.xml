@@ -1,0 +1,210 @@
+<?xml version="1.0"?>
+<automater_root>
+    <site name="Cymru-Scout" short="CYMRU" domain="https://scout.cymru.com" disable="Needs apikey">
+        <source type="hostname">https://scout.cymru.com/api/scout/ip/{%TARGET%}/details</source>
+        <source type="ip">https://scout.cymru.com/api/scout/ip/{%TARGET%}/details</source>
+        <content type="regex">
+            <entry name="Scout">\/analysis/(\w{40}).+(\d{4}\-\d{1,2}\-\d{1,2}\s\d{1,2}:\d{1,2}:\d{1,2})</entry>
+        </content>
+    </site>
+    <site name="Cymru-Hash" short="CYMRU" domain="https://hash.cymru.com" disable="Needs apikey">
+        <source type="md5">https://hash.cymru.com/v2/submitHashes</source>
+        <content type="regex">
+            <entry name="Hash">\/analysis/(\w{40}).+</entry>
+        </content>
+    </site>
+    <site name="Fortinet" short="FNet" domain="https://fortiguard.com/webfilter" disable="Needs Token">
+        <source type="hostname">https://www.fortiguard.com/iprep?data=%TARGET%</source>
+        <source type="ip">https://www.fortiguard.com/iprep?data=%TARGET%</source>
+        <content type="regex">
+            <entry name="URL Category" short="UCat">Category:\s(.+)\&lt;\/h3\&gt;\s\&lt;a</entry>
+        </content>
+    </site>
+    <site name="Maxmind/GeoIP" short="Maxmind" domain="https://www.maxmind.com/en/geoip-demo"  disable="Needs Token">
+        <source type="ip">https://geoip.maxmind.com/geoip/v2.1/city/%TARGET%?demo=1&amp;use-downloadable-db=1</source>
+        <content type="json">
+            <entry name="Continent">continent.names.en</entry>
+            <entry name="Country" short="CN">country.names.en</entry>
+            <entry name="Region" short="RN">subdivisions.names.en</entry>
+            <entry name="City">city.names.en</entry>
+            <entry name="Postal Code">postal.code</entry>
+            <entry name="Location">location</entry>
+            <entry name="Network">traits.network</entry>
+            <entry name="ISP">traits.isp</entry>
+            <entry name="organization" short="ORG">traits.organization</entry>
+            <entry name="Domain">traits.domain</entry>
+            <entry name="Connection type">traits.connection_type</entry>
+        </content>
+    </site>
+    <site name="IPStack" short="IPS" domain="https://ipstack.com">
+        <source type="ip">https://api.ipstack.com/%TARGET%</source>
+        <header key="content-type">application/json</header>
+        <param key="access_key"></param>
+        <param key="output">json</param>
+        <content type="regex">
+            <entry name="Country Name" short="CN">country_name...\"(.*?)\"</entry>
+            <entry name="Region Name" short="RN">region_name...\"(.*?)\"</entry>
+            <entry name="City" short="City">\"city\"..\"(.*?)\"</entry>
+            <entry name="Zipcode" short="Zip">\"zip\"..\"(.*?)\"</entry>
+            <entry name="Latitude" short="LAT">latitude..\s(.*?),</entry>
+            <entry name="Longitude" short="LON">longitude..\s(.*?),</entry>
+        </content>
+    </site>
+    <site name="IPVoid" short="IV" domain="https://www.ipvoid.com">
+        <source type="ip">https://www.ipvoid.com/scan/%TARGET%</source>
+        <header key="Content-type">application/x-www-form-urlencoded</header>
+        <param key="ip">%TARGET%</param>
+        <param key="go">Scan Now</param>
+        <content type="regex">
+            <entry name="Blacklist">\&gt;\s(\w+)\&lt;\/td\&gt;\&lt;td\&gt;\&lt;.{30,50}alert\.png</entry>
+            <entry name="ISP">ISP\&lt;\/td\&gt;\&lt;td\&gt;(.+)\&lt;\/td\&gt;</entry>
+            <entry name="Country Name" short="CN">Country\sCode.+flag\"\s\/\&gt;\s(.+)\&lt;\/td\&gt;</entry>
+        </content>
+    </site>
+    <site name="McAfee ThreatCenter" short="McAfee" domain="http://www.mcafee.com">
+        <source type="hostname">http://www.mcafee.com/threat-intelligence/domain/default.aspx?domain=%TARGET%&amp;region=us</source>
+        <content type="regex">
+            <entry name="Web Risk" short="WebRep">ctl00_mainContent_imgRisk\&quot;\stitle=\&quot;([A-Za-z]+)\&quot;</entry>
+            <entry name="Web Category" short="Category">Web\sCategory:[\n\s]*\&lt;\/strong\&gt;[\n\s]*([A-Z][A-Za-z\s\/,]+)\&lt;</entry>
+            <entry name="Last Seen" short="LastSeen">Last\sSeen:[\n\s]*\&lt;\/strong\&gt;[\n\s]*([0-9\-]+)\&lt;</entry>
+        </content>
+    </site>
+    <site name="Project Honeypot" domain="https://www.projecthoneypot.org">
+        <source type="ip">https://www.projecthoneypot.org/ip_%TARGET%</source>
+        <content type="regex">
+            <entry name="Geographic location" short="Geo">Geographic.{1,6}Location.+\s+.+\s.+alt=\"([a-zA-Z0-9\s\-]+)\"</entry>
+            <entry name="Activity type" short="Type">list_of_ips\.php\?t=[a-z]\&quot;\&gt;([a-zA-Z\s]+)\&lt;\/a\&gt;\&lt;\/b\&gt;</entry>
+            <entry name="First mail received" short="FirstMail">\&gt;First\&amp;nbsp;Received\&amp;nbsp;From.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])[a-zA-Z0-9\&gt;\&lt;\&quot;\&amp;:,()=;\s\t\/]+Number\&amp;nbsp;Received</entry>
+            <entry name="Last mail received" short="LastMail">\&gt;Last\&amp;nbsp;Received\&amp;nbsp;From.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])[a-zA-Z0-9\&gt;\&lt;\&quot;:,()=;\s\t\/]+Number\&amp;nbsp;Received</entry>
+            <entry name="Total mails received" short="MailTotal">\&gt;Number\&amp;nbsp;Received.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s\(\)]+[a-zA-Z\)])</entry>
+            <entry name="Spider first seen" short="FirstSpider">\&gt;Spider\&amp;nbsp;First\&amp;nbsp;Seen.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Spider last seen" short="LastSpider">\&gt;Spider\&amp;nbsp;Last\&amp;nbsp;Seen.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s\(\)]+[a-zA-Z])</entry>
+            <entry name="Spider sightings" short="SpiderTotal">\&gt;Spider\&amp;nbsp;Sightings.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z\)])</entry>
+            <entry name="User-agent sightings" short="UserAgents">\&gt;User-Agents.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9\-\(\),\s]+[a-zA-Z\)])</entry>
+            <entry name="First post on" short="FirstPost">\&gt;First\&amp;nbsp;Post\&amp;nbsp;On.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Last post on" short="LastPost">\&gt;Last\&amp;nbsp;Post\&amp;nbsp;On.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Form posts" short="PostTotal">\&gt;Form\&amp;nbsp;Posts.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s\(\)]+[a-zA-Z\)])</entry>
+            <entry name="First rule break on" short="FirstBreak">\&gt;First\&amp;nbsp;Rule-Break\&amp;nbsp;On.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Last rule break on" short="LastBreaks">\&gt;Last\&amp;nbsp;Rule-Break\&amp;nbsp;On.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Rule break sightings" short="TotalBreaks">\&gt;Rule\&amp;nbsp;Breaks.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s\(\)]+[a-zA-Z\)])</entry>
+            <entry name="First dictionary attack on" short="FirstDictionary">Dictionary\&amp;nbsp;Attacks[a-zA-Z0-9\&gt;\&lt;\&quot;:,()=;\s\t\/]+\&gt;First\&amp;nbsp;Received\&amp;nbsp;From.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Last dictionary attack on" short="LastDictionary">Dictionary\&amp;nbsp;Attacks[a-zA-Z0-9\&gt;\&lt;\&quot;\&amp;:,()=;\s\t\/]+\&gt;Last\&amp;nbsp;Received\&amp;nbsp;From.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Dictionary attack sightings" short="TotalDictionary">\&gt;Dictionary\&amp;nbsp;Attacks.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s\(\)]+[a-zA-Z\)])</entry>
+            <entry name="Harvester first seen" short="FirstHarvester">\&gt;Harvester\&amp;nbsp;First\&amp;nbsp;Seen.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z])</entry>
+            <entry name="Harvester last seen" short="LastHarvester">\&gt;Harvester\&amp;nbsp;Last\&amp;nbsp;Seen.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s\(\)]+[a-zA-Z])</entry>
+            <entry name="Harvester sightings" short="HarvesterSightings">\&gt;Harvester\&amp;nbsp;Sightings.+[\n\r\t\s]+.+[\n\r\t\s]+([a-zA-Z0-9,\s]+[a-zA-Z\)])</entry>
+            <entry name="Harvester results" short="HarvesterResults">(?:\&gt;Harvester\&amp;nbsp;Results(?:.+[\n\s].+[\n\s]+)\s{2,}|(?:\&lt;br\s\/\&gt;))(?!\s)([0-9a-zA-Z.\-\s:,()]+)\s{2,}</entry>
+        </content>
+    </site>
+    <site name="ReputationAuthority" short="RA" domain="http://www.reputationauthority.org" disable="DEAD">
+        <source type="ip">http://www.reputationauthority.org/lookup.php?ip=%TARGET%</source>
+        <content type="regex">
+            <entry name="Score">bsnd.+&gt;(\d{1,2}\/\d{1,3})</entry>
+        </content>
+    </site>
+    <site name="RobTex Lookup" short="RTex" domain="https://robtex.com" disable="BROKEN">
+        <source type="ip">https://robtex.com/en/ip-lookup/%TARGET%</source>
+        <content type="regex">
+            <entry name="Host Records" short="DNS">host\"\s\:\s\"(.+)\"</entry>
+        </content>
+    </site>
+    <site name="RobTex Reputations" short="RTex" domain="https://robtex.com" disable="BROKEN">
+        <source type="ip">https://robtex.com/xes/en/ip-reputations/%TARGET%</source>
+        <content type="regex">
+            <entry name="Host Records" short="DNS">host\"\s\:\s\"(.+)\"</entry>
+        </content>
+    </site>
+    <site name="SANS API" short="SANS" domain="https://isc.sans.edu">
+        <source type="ip">https://isc.sans.edu/api/ip/%TARGET%</source>
+        <content type="regex">
+            <entry name="Total target IPs seen" short="Attacks">attacks\&gt;(\d+)\&lt;</entry>
+            <entry name="Total packets blocked" short="Count">count\&gt;(\d+)\&lt;</entry>
+            <entry name="Last seen on" short="MaxDate">maxdate\&gt;(\d{4}-\d{2}-\d{2})\&lt;</entry>
+            <entry name="First seen on" short="MinDate">mindate\&gt;(\d{4}-\d{2}-\d{2})\&lt;</entry>
+        </content>
+    </site>
+    <site name="Shodan" domain="https://www.shodan.io" disable="Not Implemented!">
+        <source type="ip">https://www.shodan.io/host/%TARGET%</source>
+        <content type="regex">
+            <entry name="Host">Host\&gt;(\d{4}-\d{2}-\d{2})\&lt;</entry>
+        </content>
+    </site>
+    <site name="TekHoneypot" short="TekHP" domain="http://104.236.247.86/static/attackers.out" disable="DEAD">
+        <source type="ip">http://104.236.247.86/static/attackers.out</source>
+        <content type="regex">
+            <entry name="Hit">%TARGET%</entry>
+        </content>
+    </site>
+    <site name="ThreatExpert" short="TE" domain="http://www.threatexpert.com" disable="DEAD">
+        <source type="md5">http://www.threatexpert.com/report.aspx?md5=%TARGET%</source>
+        <content type="regex">
+            <entry name="Submission received" short="Date">Submission\sreceived.\s(.+)\&lt;\/li\&gt;</entry>
+            <entry name="Malicious Indicators" short="Indicators">1\"&gt;(.{5,100})\&lt;\/td.{10,35}src\=</entry>
+        </content>
+    </site>
+    <site name="UnshortenMe" short="UnShorten" domain="https://unshorten.me" disable="BROKEN">
+        <source type="hostname">https://unshorten.me/xml/%TARGET%</source>
+        <content type="regex">
+            <entry name="URL redirects to" short="Redirect">(?&lt;=\&lt;resolved_url\&gt;).+(?=\&lt;/resolved_url\&gt;)</entry>
+        </content>
+    </site>
+    <site name="URLVoid" short="UV" domain="https://www.urlvoid.com">
+        <source type="hostname">https://www.urlvoid.com/scan/%TARGET%</source>
+        <header key="Content-type">application/x-www-form-urlencoded</header>
+        <param key="ip">%TARGET%</param>
+        <param key="go">Scan Now</param>
+        <content type="regex">
+            <entry name="IP Address" short="IP">(?&lt;=IP\sAddress\&lt;/span\&gt;\&lt;/td\&gt;\&lt;td\&gt;\&lt;strong\&gt;).+(?=\&lt;/strong\&gt;)</entry>
+            <entry name="Detection count" short="Detections">(?&lt;=label-success\"\&gt;)\d{1,2}/\d{1,2}</entry>
+            <entry name="Domain Registration Age" short="Age">(?&lt;=Domain\sRegistration\&lt;/span\&gt;\&lt;/td\&gt;\&lt;td\&gt;).+ago</entry>
+            <entry name="Location Coordinates" short="Geo">(?&lt;=Longitude\&lt;/span\&gt;\&lt;/td\&gt;\&lt;td\&gt;)\d{1,3}\.\d{1,5}\s/\s-?\d{1,3}\.\d{1,5}</entry>
+            <entry name="Country Name" short="CN">\.gif\"\salt=\"\"\s/\&gt;\s(.*?)\&lt;</entry>
+        </content>
+    </site>
+    <site name="VirusTotal" short="VT" domain="https://www.virustotal.com" disable="Needs token">
+        <source type="md5">https://www.virustotal.com/api/v3/files/%TARGET%</source>
+        <header key="content-type">application/json</header>
+        <header key="x-apikey"></header>
+        <param key="resource">%TARGET%</param>
+        <content type="regex">
+            <entry name="Submission count" short="Found">times_submitted...(\d{0,3})</entry>
+            <entry name="Last Submission Date" short="Date">last_submission_date...(\d{10})</entry>
+            <entry name="Number of detections" short="Detections">last_analysis_stats....\s\s{1,50}.malicious...(\d{0,3})</entry>
+            <entry name="Engine and Result" short="Engine|Result">(?&lt;=engine_name)\"..\"([a-zA-Z0-9\s_]+.+)\".\s{1,50}[a-zA-Z0-9\"\s:_.,]+malicious.,\s{1,50}.result...\"(.*?)\"</entry>
+        </content>
+        <errors name="Error message">{&quot;error&quot;: {(.*?)}}</errors>
+    </site>
+    <site name="VirusTotal/Domains" short="VT" domain="https://www.virustotal.com" disable="Needs token">
+        <source type="hostname">https://www.virustotal.com/api/v3/domains/%TARGET%</source>
+        <header key="content-type">application/json</header>
+        <header key="x-apikey"></header>
+        <content type="regex">
+            <entry name="DNS Records" short="pDNSIP">\s{1,50}.\s{1,50}.type....(.*?)\",\s{1,50}.value....(.*?)\"</entry>
+            <entry name="DNS Last DNS Records Date" short="pDNSDATE">last_dns_records_date...(\d{10})</entry>
+            <entry name="DNS Last Analysis Stats" short="pDNSSTATS">last_analysis_stats.{1,4}\s.{1,20}(malicious)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(suspicious)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(undetected)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(harmless)\"\:\s(\d{0,3}).{1,10}\s.{1,20}</entry>
+        </content>
+    </site>
+    <site name="VirusTotal/IP_Addresses" short="VT" domain="https://www.virustotal.com" disable="Needs token">
+        <source type="ip">https://www.virustotal.com/api/v3/ip_addresses/%TARGET%</source>
+        <header key="x-apikey"></header>
+        <param key="ip">%TARGET%</param>
+        <content type="regex">
+            <entry name="ASN" short="ASN">asn...(\w+)</entry>
+            <entry name="Country Name" short="CN">country....(\w+)\"\,</entry>
+            <entry name="AS Owner" short="AS Owner">(?&lt;=owner....)[A-Za-z0-9_\s\./\\-]*</entry>
+            <entry name="Whois Date" short="Whois Date">whois_date...(\d{10})</entry>
+            <entry name="Whois NetRange" short="Whois NetRange">\"whois\":\s\"(?:NetRange:\s)([0-9\.]+\s\-\s[0-9\.]+)</entry>
+            <entry name="Whois NetName" short="Whois NetName">\"whois\":\s\"(?:.*\s[0-9\.]+\s\-\s[0-9\.]+\\n[A-Z:\s[0-9\.\/]+)\\n(?:NetName:\s)([a-zA-Z0-9\-]+)</entry>
+            <entry name="Whois Address" short="Whois Address">\"whois\":\s\"(?:.*\s[0-9\.]+\s\-\s[0-9\.]+\\n[A-Z:\s0-9\.\/]+\\n[a-zA-Z:\s0-9\.\/-]+)+[a-zA-Z:\s0-9\.\/-]+.+(?:Address:\s)([\sa-zA-Z0-9#\\n]+.+)\\nCity:\s([a-zA-Z0-9#\\n]+)\\nStateProv:\s([a-zA-Z0-9\\n]+)\\nPostalCode:\s([a-zA-Z0-9\-]+)\\nCountry:\s([a-zA-Z\s]+)\\n(RegDate:\s[a-zA-Z0-9\-]+)\\n(Updated:\s[a-zA-Z0-9\-]+)\\n</entry>
+            <entry name="Analysis" short="Analysis">last_analysis_stats.{1,4}\s.{1,20}(malicious)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(suspicious)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(undetected)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(harmless)\"\:\s(\d{0,3}).{1,10}\s.{1,20}(?:timeout)</entry>
+        </content>
+    </site>
+    <site name="VxVault" short="Vx" domain="https://vxvault.net">
+        <!--supports TLS but uses an invalid cert-->
+        <source type="md5">https://vxvault.net/ViriList.php?MD5=%TARGET%</source>
+        <content type="regex">
+            <entry name="Date">\&gt;(\d{2}\-\d{2})\&lt;</entry>
+            <entry name="URL">(?:\[D\].{2,40}\Wphp\?id.{2,10}\&gt;(.{5,100})&lt;\/a)|(Login to display URL)</entry>
+        </content>
+    </site>
+</automater_root>

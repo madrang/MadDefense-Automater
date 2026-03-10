@@ -39,3 +39,6 @@ pip-delete-this-arg.txt
 # OS-specific files
 .DS_Store # macOS
 Thumbs.db # Windows
+
+# User config file
+settings.xml
