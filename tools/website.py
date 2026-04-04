@@ -187,6 +187,7 @@ class Site(AbstractContent):
             raise ValueError("'name' argument is missing!")
         if not hasattr(self, "_domainUrl"):
             raise ValueError("'domainurl' argument is missing!")
+        self._session = requests.Session()
 
     def loadArgs(self, **kwargs):
         """ Class constructor.
@@ -465,10 +466,10 @@ class Site(AbstractContent):
                 reqArgs["data"] = postData
                 logger.debug(f"[-] {self.DomainURL} requires a submission for {target}."\
                                 " Submitting now, this may take a moment.")
-                resp = requests.post(**reqArgs)
+                resp = self._session.post(**reqArgs)
             else:
                 reqArgs["timeout"] = 5
-                resp = requests.get(**reqArgs)
+                resp = self._session.get(**reqArgs)
             responseStringContent = resp.content.decode(encoding = "utf8")
             resp.raise_for_status()
             return responseStringContent

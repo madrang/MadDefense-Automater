@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 import logging
 import re
 import json
+import pprint
+
+from utilities import ConfigError
 
 logger = logging.getLogger(__name__)
 
@@ -168,17 +171,17 @@ class JSONEntry(ContentEntry):
 
         path = self._path
         if isinstance(path, str):
-            path.split(".")
+            path = path.split(".")
 
         for p in path:
             p = p.replace("%TARGET%", str(target))
             if not p in content: return None
             content = content[p]
 
-        #if isinstance(content, dict):
-        #TODO formatting...
         if isinstance(content, list):
             content = ", ".join(content)
+        elif isinstance(content, dict):
+            content = pprint.pformat(content, indent = 4)
         return {
             "Entry": self
             , "Message": str(content)
@@ -246,8 +249,12 @@ class RegexEntry(ContentEntry):
         regex = self._regex.replace("%TARGET%", str(target))
         matches = re.findall(regex, content, re.IGNORECASE)
         if not matches: return None
-        return {
+        resultDict = {
             "Entry": self
-            , "Message": ", ".join(matches) if isinstance(matches, list) else str(matches)
             , "Target": target
         }
+        if isinstance(matches, list):
+            resultDict["Message"] = ", ".join([ str(m) for m in matches ])
+        else:
+            resultDict["Message"] = str(matches)
+        return resultDict

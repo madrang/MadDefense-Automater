@@ -9,7 +9,7 @@ from parsing import ContentParser
 from reporting import ErrorReport, ThreatReport
 from tool import Tool
 
-from utilities import Utils
+from utilities import ConfigError, Utils
 
 logger = logging.getLogger(__name__)
 
